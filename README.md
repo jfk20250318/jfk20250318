@@ -5,7 +5,7 @@ JFK files release from national archives -- forks and pull requests are welcomed
   * 31,419 pages
 
 * The `pdf/20250318-2230h` folder includes all 1,059 files from the US National Archives delivered at 2230h.  4 files were renamed to conform to generic filesystem naming conventions.
-  * 37,061 pages
+  * 37,127 pages
 
 * The `pdf/20250318-supplemental` folder includes all 75 files from the US National Archives [supplemental drop].
   * 489 pages 
