@@ -34,3 +34,5 @@ JFK files release from national archives -- forks and pull requests are welcomed
 │   └── sha256-20250318-2230h.txt
 └── word_histogram.txt [words frequency of occurence in 31,419 page original drop]
 ```
+
+TODO: still some incorrect PDF files in the 2230h drop -- will need to investigate.  confirmed that local copy is byte-for-byte the same as the archives.gov version, so corruption is upstream
