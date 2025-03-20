@@ -22,6 +22,7 @@ JFK files release from national archives -- forks and pull requests are welcomed
 ├── README.md
 ├── extracted_text.txt [31,419 page original 1123 files extracted to one text file]
 ├── low-res-ocr-jfk2025038.pdf [31,419 page OCR original 1123 files]
+├── med-res-ocr-jfk2025038-supplemental.pdf [489 page OCR original 75 files]
 ├── pdf
 │   ├── 20250318-1930h [1123 files of original drop, canonical naming]
 │   │   └── *.pdf
