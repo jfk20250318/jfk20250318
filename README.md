@@ -44,4 +44,10 @@ JFK files release from national archives -- forks and pull requests are welcomed
 └── 20250318-1930h-word-histogram.txt [words frequency of occurence in 31,419 page original drop]
 ```
 
+
+* Additional Extracted Texts
+Additional extracted texts from all five JFK file releases can be found in this repository: https://github.com/noops888/jfk-files-text
+
 TODO: still some incorrect PDF files in the 2230h drop -- will need to investigate.  confirmed that local copy is byte-for-byte the same as the archives.gov version, so corruption is upstream
+
+Additional extracted 
