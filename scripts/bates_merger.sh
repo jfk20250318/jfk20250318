@@ -1,34 +1,39 @@
 #!/usr/bin/env bash
-
+# bates_merger.sh
 # Watermark and merge PDFs with tree merge strategy.
 # Optimizes final output to deduplicate fonts and reduce size.
 # Usage: ./bates_merger.sh <input_folder> <output_file.pdf>
 
-set -euo pipefail
+# bash configuration:
+# 1) Exit script if you try to use an uninitialized variable.
+set -o nounset
+
+# 2) Exit script if a statement returns a non-true return value.
+set -o errexit
+
+# 3) Use the error status of the first failure, rather than that of the last item in a pipeline.
+set -o pipefail
 
 readonly BATCH_SIZE=100
 readonly LOG_FILE="/tmp/bates_merger.log"
+exec 5>>"${LOG_FILE}"
 
 function main() {
-  local input_dir="${1}"
-  local output_pdf="${2}"
-
-  if [[ ! -d "${input_dir}" || -z "${output_pdf}" ]]; then
-    printf 'Usage: %s <input_folder> <output_file.pdf>\n' "${0}"
-    exit 1
-  fi
+  validate_args "${@}"
+  local -r input_dir="${1}"
+  local -r output_pdf="${2}"
 
   local work_dir
   work_dir="$(mktemp -d)"
-  local stamped_list_file="${work_dir}/stamped_files.txt"
+  local -r stamped_list_file="${work_dir}/stamped_files.txt"
 
   log '🔍 Scanning for PDF files in: %s' "${input_dir}"
-  while IFS= read -r input_pdf; do
+  find "${input_dir}" -type f -name '*.pdf' | sort | while IFS= read -r input_pdf; do
     function_stamp_and_merge_single_pdf "${input_pdf}" "${work_dir}" "${stamped_list_file}"
-  done < <(find "${input_dir}" -type f -name '*.pdf' | sort)
+  done
 
   log '📦 Merging all stamped PDFs...'
-  local merged_pdf="${work_dir}/merged.pdf"
+  local -r merged_pdf="${work_dir}/merged.pdf"
   function_merge_all_files_tree "${stamped_list_file}" "${merged_pdf}"
 
   log '🧼 Optimizing final merged PDF to deduplicate fonts...'
@@ -38,44 +43,52 @@ function main() {
   rm -rf "${work_dir}"
 }
 
+function validate_args() {
+  if [[ "${#@}" -ne 2 || ! -d "${1}" || -z "${2}" ]]; then
+    printf 'Usage: %s <input_folder> <output_file.pdf>\n' "${0}" >&2
+    exit 1
+  fi
+}
+
 function log() {
-  local format="${1}"; shift
-  printf "${format}\n" "${@:-}" | tee -a "${LOG_FILE}"
+  local -r format="${1}"; shift
+  printf "${format}\n" "${@:-}" | tee -a /dev/fd/5
 }
 
 function function_stamp_and_merge_single_pdf() {
-  local input_pdf="${1}"
-  local work_dir="${2}"
-  local list_file="${3}"
+  local -r input_pdf="${1}"
+  local -r work_dir="${2}"
+  local -r list_file="${3}"
 
   local basename
   basename="$(basename "${input_pdf}")"
-  local filename="${basename%.*}"
-  local temp_dir="${work_dir}/${filename}"
+  local -r filename="${basename%.*}"
+  local -r temp_dir="${work_dir}/${filename}"
   mkdir -p "${temp_dir}"
 
   log '🖋️  Watermarking: %s' "${basename}"
   function_split_and_stamp_pages "${input_pdf}" "${basename}" "${temp_dir}"
 
-  local stamped_pages=("${temp_dir}"/stamped-*.pdf)
+  local stamped_pages
+  stamped_pages=("${temp_dir}"/stamped-*.pdf)
   local final_pdf
   final_pdf="$(function_tree_merge_pdfs "${stamped_pages[@]}")"
-  local output_pdf="${work_dir}/stamped_${basename}"
+  local -r output_pdf="${work_dir}/stamped_${basename}"
 
   mv "${final_pdf}" "${output_pdf}"
   printf '%s\n' "${output_pdf}" >> "${list_file}"
   rm -rf "${temp_dir}"
 
-  if [[ $(wc -l < "${list_file}") -eq 1 ]]; then
+  if [[ "$(wc -l < "${list_file}")" -eq 1 ]]; then
     log '👁️  Previewing first stamped file: %s' "${output_pdf}"
     open "${output_pdf}"
   fi
 }
 
 function function_split_and_stamp_pages() {
-  local input_pdf="${1}"
-  local basename="${2}"
-  local temp_dir="${3}"
+  local -r input_pdf="${1}"
+  local -r basename="${2}"
+  local -r temp_dir="${3}"
 
   qpdf --split-pages "${input_pdf}" "${temp_dir}/page-%05d.pdf"
 
@@ -83,17 +96,17 @@ function function_split_and_stamp_pages() {
   for page_pdf in "${temp_dir}"/page-*.pdf; do
     local stamp_text="${basename} - Page ${page_num}"
     function_stamp_single_page "${page_pdf}" "${stamp_text}" "${temp_dir}"
-    ((page_num++))
+    page_num=$((page_num + 1))
   done
 }
 
 function function_stamp_single_page() {
-  local page_pdf="${1}"
-  local stamp_text="${2}"
-  local temp_dir="${3}"
+  local -r page_pdf="${1}"
+  local -r stamp_text="${2}"
+  local -r temp_dir="${3}"
 
-  local wm_pdf="${temp_dir}/wm-${RANDOM}.pdf"
-  local stamped_pdf="${temp_dir}/stamped-$(basename "${page_pdf}")"
+  local -r wm_pdf="${temp_dir}/wm-${RANDOM}.pdf"
+  local -r stamped_pdf="${temp_dir}/stamped-$(basename "${page_pdf}")"
 
   gs -q -o "${wm_pdf}" \
     -sDEVICE=pdfwrite \
@@ -122,8 +135,8 @@ function function_tree_merge_pdfs() {
   local pdfs=("${@}")
   local level=0
 
-  while (( ${#pdfs[@]} > 1 )); do
-    ((level++))
+  while [[ "${#pdfs[@]}" -gt 1 ]]; do
+    level=$((level + 1))
     pdfs=( $(function_merge_pdf_batch "${level}" "${pdfs[@]}") )
   done
 
@@ -131,13 +144,13 @@ function function_tree_merge_pdfs() {
 }
 
 function function_merge_pdf_batch() {
-  local level="${1}"; shift
+  local -r level="${1}"; shift
   local batch=("${@}")
   local merged=()
 
-  while (( ${#batch[@]} )); do
-    local subset=("${batch[@]:0:BATCH_SIZE}")
-    batch=("${batch[@]:BATCH_SIZE}")
+  while [[ "${#batch[@]}" -gt 0 ]]; do
+    local subset=("${batch[@]:0:${BATCH_SIZE}}")
+    batch=("${batch[@]:${BATCH_SIZE}}")
 
     local temp_base
     temp_base="$(mktemp "${TMPDIR:-/tmp}/merged-l${level}-XXXXXX")"
@@ -152,8 +165,8 @@ function function_merge_pdf_batch() {
 }
 
 function function_merge_all_files_tree() {
-  local list_file="${1}"
-  local output_pdf="${2}"
+  local -r list_file="${1}"
+  local -r output_pdf="${2}"
   local all_files=()
 
   while IFS= read -r line || [[ -n "${line}" ]]; do
@@ -166,9 +179,9 @@ function function_merge_all_files_tree() {
 }
 
 function function_optimize_pdf() {
-  local input_pdf="${1}"
-  local output_pdf="${2}"
-  local optimized_tmp="${output_pdf}.tmp"
+  local -r input_pdf="${1}"
+  local -r output_pdf="${2}"
+  local -r optimized_tmp="${output_pdf}.tmp"
 
   gs -q -dNOPAUSE -dBATCH \
     -sDEVICE=pdfwrite \
@@ -184,9 +197,4 @@ function function_optimize_pdf() {
   mv "${optimized_tmp}" "${output_pdf}"
 }
 
-function main_wrapper() {
-  main "${@}"
-}
-
-main_wrapper "${@}"
-
+main "${@:-}"
