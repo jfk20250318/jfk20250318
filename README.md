@@ -1,10 +1,19 @@
+[![Sponsor](https://img.shields.io/badge/Sponsor-💖-ff69b4?style=for-the-badge)](https://github.com/sponsors/PaulCharlton)
+
+
+## Preserve the Past, Power the Future: Help Keep the Archive Alive
+If you’re finding value in this JFK Archive repository—whether you’re exploring history, conducting research, or building on this dataset—please consider contributing back. Hosting these large files through Git LFS incurs real bandwidth and storage costs, and every download adds up. This project is maintained independently and shared freely to support open access to government records and foster deeper public understanding.
+
+If you’d like to help defray the costs of hosting and maintaining this archive, a small contribution goes a long way. You can sponsor the project directly through [GitHub Sponsors](https://github.com/sponsors/PaulCharlton) or reach out if you’d prefer another method. Your support helps keep this resource online and freely accessible for everyone. Thank you for being a part of this effort.
+
+---
 # jfk20250318 thru jfk20250320
 ## JFK files release from national archives -- forks and pull requests are welcomed.
 
 | Folder Path               | Files | Pages  | Notes                                                    |
 |---------------------------|-------|--------|----------------------------------------------------------|
 | pdf/20250318-1930h        | 1,123 | 31,419 | 1st drop from NARA.  2 files renamed to canonical format |
-| pdf/20250318-2230h        | 1,059 | xx,xxx | 2nd drop from NARA.  4 files renamed to canonical format |
+| pdf/20250318-2230h        | 1,059 | 37,127 | 2nd drop from NARA.  4 files renamed to canonical format |
 | pdf/20250318-supplemental | 75    | 489    | Supplemental drop from the US National Archives          |
 | pdf/20250320-2130h        | 161   | 14,318 | 3rd drop from NARA.                                      |
 | pdf/20250326-1530h        | 16    | 53     | 4th drop from NARA.                                      |
@@ -14,7 +23,7 @@
 | OCR + Bates                              | Files | Pages  |
 |------------------------------------------|-------|--------|
 | med-res-ocr-jfk20250318-1930h.pdf        | 1,123 | 31,419 |
-| med-res-ocr-jfk20250318-2230h.pdf        | 1,059 | xx,xxx |
+| med-res-ocr-jfk20250318-2230h.pdf        | 1,059 | 37,127 |
 | med-res-ocr-jfk20250318-supplemental.pdf | 75    | 489    |
 | med-res-ocr-jfk20250320-2130h.pdf        | 161   | 14,318 |
 | med-res-ocr-jfk20250326-1530h.pdf        | 16    | 53     |
@@ -24,7 +33,7 @@
 | Extracted Text                            | Pages  |
 |-------------------------------------------|--------|
 | 20250318-1930h-extracted-text.txt         | 31,419 |
-| 20250318-2230h-extracted-text.txt         | xx,xxx |
+| 20250318-2230h-extracted-text.txt         | 37,127 |
 | 20250318-supplemental-extracted-text.txt  | 489    |
 | 20250320-2130h-extracted-text.txt         | 14,318 |
 | 20250326-1530h-extracted-text.txt         | 53     |
