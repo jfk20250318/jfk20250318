@@ -105,15 +105,6 @@ function run_ocrmypdf() {
   log '✅ OCR completed successfully.\n'
 }
 
-function tokenize_words() {
-  sed \
-    -e 's|[[:space:]]|\n|g' \
-    -e 's|[^[:print:]]||g' \
-    -e 'y|ABCDEFGHIJKLMNOPQRSTUVWXYZ|abcdefghijklmnopqrstuvwxyz|' \
-    -e 's|[^[:alnum:][:punct:]]||g' \
-    -e '/^..$/d'
-}
-
 function convert_to_utf8() {
   local input_file="$1"
   local output_file="$2"
@@ -123,18 +114,7 @@ function convert_to_utf8() {
 function count_filtered_words() {
   local input_file="$1"
   local tmpfile="$2"
-  local word_counter=0
-
-  tokenize_words < "${input_file}" | \
-    while read -r word; do
-      word_counter=$((word_counter + 1))
-      if (( word_counter % 1000 == 0 )); then
-        printf 'M' >&5
-      fi
-      if is_valid_word "${word}"; then
-        printf '%s\n' "${word}"
-      fi
-    done | sort | uniq -c | sort -k1,1nr -k2 > "${tmpfile}"
+  awk -f "$(dirname "$0")/extract_and_count.awk" "${input_file}" | sort -k1,1nr -k2 > "${tmpfile}"
 }
 
 function generate_word_count() {
@@ -151,29 +131,10 @@ function generate_word_count() {
   count_filtered_words "${utf8_file}" "${tmpfile}"
 
   write_csv_header "${output_file}"
-  awk '{ print $1 "," $2 }' "${tmpfile}" >> "${output_file}"
+  cat "${tmpfile}" >> "${output_file}"
   rm -f "${tmpfile}" "${utf8_file}"
 
   log '✅ Word count CSV generated: %s\n' "${output_file}"
-}
-
-function is_valid_word() {
-  local word="$1"
-  local raw_len clean_len threshold
-
-  raw_len="${#word}"
-  if [[ "${raw_len}" -le 2 ]]; then
-    return 1
-  fi
-
-  clean_len=$(LC_CTYPE=C printf '%s' "${word}" | tr -cd 'A-Za-z0-9' | wc -c | tr -d ' ')
-  threshold=$((raw_len - raw_len / 10))
-
-  if [[ "${clean_len}" -lt "${threshold}" ]]; then
-    return 1
-  fi
-
-  return 0
 }
 
 function write_csv_header() {
