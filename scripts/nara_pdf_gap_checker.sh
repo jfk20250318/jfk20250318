@@ -18,6 +18,7 @@ declare -r OUTPUT_FOUND="${LOG_DIR}/found_files_${RUN_TS}.txt"
 declare -r OUTPUT_EXCEPTIONS="${LOG_DIR}/exceptions_${RUN_TS}.txt"
 declare -r LOGFILE="${LOG_DIR}/logfile_${RUN_TS}.txt"
 declare DRY_RUN=false
+declare GAPS_ONLY=false
 
 function main() {
   function_validate_arguments "$@"
@@ -25,9 +26,9 @@ function main() {
   function_setup_logging
   function_initialize_outputs
   function_phase_one "$1"
-  if [[ "${DRY_RUN}" == false ]]; then
+  if [[ "${DRY_RUN}" == false && "${GAPS_ONLY}" == false ]]; then
     function_phase_two
-  else
+  elif [[ "${DRY_RUN}" == true ]]; then
     function_log "🚩 Dry run enabled; skipping remote checks."
   fi
   function_cleanup_and_summarize
@@ -39,7 +40,9 @@ function function_prepare_log_dir() {
 
 function function_setup_logging() {
   exec 5>"${LOGFILE}"
-  function_log "📄 Logfile initialized: ${LOGFILE}"
+  if [[ "${GAPS_ONLY}" == false ]]; then
+    function_log "📄 Logfile initialized: ${LOGFILE}"
+  fi
 }
 
 function function_initialize_outputs() {
@@ -50,7 +53,9 @@ function function_initialize_outputs() {
 
 function function_phase_one() {
   local scan_root="$1"
-  function_log "🔎 Scanning for PDF files under: ${scan_root}"
+  if [[ "${GAPS_ONLY}" == false ]]; then
+    function_log "🔎 Scanning for PDF files under: ${scan_root}"
+  fi
   local all_files
   all_files="$(find "${scan_root}" -type f -name '*.pdf')"
 
@@ -59,12 +64,18 @@ function function_phase_one() {
     exit 1
   fi
 
-  function_log '📂 Sorting files by filename...'
+  if [[ "${GAPS_ONLY}" == false ]]; then
+    function_log '📂 Sorting files by filename...'
+  fi
+
   local sorted_tmp
   sorted_tmp="$(mktemp)"
   function_generate_sorted_list_by_basename "${all_files}" > "${sorted_tmp}"
 
-  function_log '🔍 Phase 1: Identifying missing files...'
+  if [[ "${GAPS_ONLY}" == false ]]; then
+    function_log '🔍 Phase 1: Identifying missing files...'
+  fi
+
   function_identify_missing_files "${sorted_tmp}"
   export SORTED_TMP_FILE="${sorted_tmp}"
 }
@@ -104,7 +115,9 @@ function function_process_file_for_gaps() {
   local prev="$2"
 
   if ! function_is_valid_nara_filename "${file}"; then
-    function_log "⚠️ Skipping invalid: $(basename "${file}")"
+    if [[ "${GAPS_ONLY}" == false ]]; then
+      function_log "⚠️ Skipping invalid: $(basename "${file}")"
+    fi
     printf '%s\n' "${file}" >> "${OUTPUT_EXCEPTIONS}"
     return
   fi
@@ -119,6 +132,7 @@ function function_is_valid_nara_filename() {
   local filename
   filename="$(basename "${filepath}")"
   local base="${filename%.pdf}"
+  base="${base%%_*}"
   local page="${base##*-}"
   local prefix="${base%-"${page}"}"
 
@@ -148,7 +162,6 @@ function function_compare_adjacent_files() {
   read -r prefix2 page2 <<< "${parsed2}"
 
   if [[ "${prefix1}" != "${prefix2}" ]]; then
-    function_log "🚧 Skipping pair: ${prefix1} ≠ ${prefix2}"
     return
   fi
 
@@ -161,8 +174,6 @@ function function_compare_adjacent_files() {
   if (( expected_start <= expected_end )); then
     function_log "📎 Gap after $(basename "${file1}"): ${expected_start} to ${expected_end}"
     function_write_missing_range "${prefix1}" "${expected_start}" "${expected_end}"
-  elif [[ "${DRY_RUN}" == false ]]; then
-    function_log "✅ No gap between $(basename "${file1}") and $(basename "${file2}")"
   fi
 }
 
@@ -183,12 +194,10 @@ function function_verify_missing_files_exist() {
   done < "${OUTPUT_MISSING}"
 }
 
-function function_check_and_record_remote_file() {
+function function_check_remote_exists() {
   local filename="$1"
-  if function_check_remote_exists "${filename}"; then
-    function_log "🌐 Found remotely: ${filename}"
-    printf '%s\n' "${filename}" >> "${OUTPUT_FOUND}"
-  fi
+  local url="${BASE_URL}${filename}"
+  curl --head --silent --fail "${url}" > /dev/null
 }
 
 function function_parse_nara_filename() {
@@ -196,6 +205,7 @@ function function_parse_nara_filename() {
   local filename
   filename="$(basename "${filepath}")"
   local base="${filename%.pdf}"
+  base="${base%%_*}"
   local page="${base##*-}"
   local prefix="${base%-"${page}"}-"
   printf '%s %s\n' "${prefix}" "${page}"
@@ -203,26 +213,9 @@ function function_parse_nara_filename() {
 
 function function_get_pdf_page_count() {
   local file="$1"
-
-  if [[ ! -f "${file}" ]]; then
-    printf '0\n'
-    return
-  fi
-
   local count
   count="$(command pdfinfo "${file}" 2>/dev/null | grep '^Pages:' | awk '{print $2}' || true)"
-
-  if [[ -z "${count}" ]]; then
-    printf '0\n'
-  else
-    printf '%s\n' "${count}"
-  fi
-}
-
-function function_check_remote_exists() {
-  local filename="$1"
-  local url="${BASE_URL}${filename}"
-  curl --head --silent --fail "${url}" > /dev/null
+  printf '%s\n' "${count:-0}"
 }
 
 function function_validate_arguments() {
@@ -234,9 +227,10 @@ function function_validate_arguments() {
     printf '❌ ERROR: Directory not found: %s' "$1" >&2
     exit 1
   fi
-  if [[ ${2:-} == "--dry-run" ]]; then
-    DRY_RUN=true
-  fi
+  for arg in "$@"; do
+    [[ ${arg} == "--dry-run" ]] && DRY_RUN=true
+    [[ ${arg} == "--gaps-only" ]] && GAPS_ONLY=true
+  done
 }
 
 function function_summarize_outputs() {
